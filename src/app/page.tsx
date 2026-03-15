@@ -3,6 +3,36 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Plus, 
+  MessageSquare, 
+  Eye, 
+  Code, 
+  Monitor, 
+  Smartphone, 
+  Tablet, 
+  ExternalLink, 
+  Maximize2, 
+  Copy, 
+  Check, 
+  LogOut, 
+  User, 
+  History,
+  Send,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  Sparkles
+} from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 type Message = {
   role: "user" | "assistant";
@@ -10,7 +40,7 @@ type Message = {
   html?: string | null;
 };
 
-type RightPanelTab = "preview" | "code";
+type ViewMode = "chat" | "preview" | "code";
 
 type ProjectItem = {
   id: string;
@@ -26,12 +56,15 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewVersion, setPreviewVersion] = useState(0);
-  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>("preview");
+  const [viewMode, setViewMode] = useState<ViewMode>("chat");
   const [copied, setCopied] = useState(false);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectLoadId, setProjectLoadId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLIFrameElement>(null);
 
@@ -60,6 +93,7 @@ export default function Home() {
     setPreviewHtml(null);
     setPreviewVersion((v) => v + 1);
     setProjectsOpen(false);
+    setViewMode("chat");
   };
 
   const loadProject = async (id: string) => {
@@ -79,6 +113,7 @@ export default function Home() {
       setPreviewHtml(data.previewHtml ?? null);
       setPreviewVersion((v) => v + 1);
       setProjectsOpen(false);
+      setViewMode("preview");
     } catch {
       setProjectLoadId(null);
     } finally {
@@ -169,6 +204,10 @@ export default function Home() {
       if (data.html) {
         setPreviewHtml(data.html);
         setPreviewVersion((v) => v + 1);
+        // Switch to preview on larger screens if something was generated
+        if (window.innerWidth >= 768) {
+          setViewMode("preview");
+        }
       }
     } catch (err) {
       setMessages((prev) => [
@@ -193,254 +232,467 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight truncate">
-            Frontend AI — Describe a site, get the code
-          </h1>
+    <div className="flex h-screen w-full flex-col bg-background text-foreground overflow-hidden">
+      {/* Background Decorative Elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-blue-500/10 blur-[100px] rounded-full" />
+      </div>
+
+      {/* Header */}
+      <header className="z-30 h-16 border-b border-border glass px-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-600/20 group-hover:scale-110 transition-transform">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight hidden sm:block">
+              Front<span className="text-emerald-500">bot</span>
+            </h1>
+          </Link>
+
           {session?.user && (
             <div className="relative">
               <button
-                type="button"
-                onClick={() => setProjectsOpen((o) => !o)}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 transition"
+                onClick={() => setProjectsOpen(!projectsOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-accent/50 hover:bg-accent text-sm transition"
               >
-                Projects
+                <History className="w-4 h-4" />
+                <span>Projects</span>
               </button>
-              {projectsOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    aria-hidden
-                    onClick={() => setProjectsOpen(false)}
-                  />
-                  <div className="absolute left-0 top-full mt-1 z-20 w-72 rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl py-2 max-h-[70vh] overflow-hidden flex flex-col">
-                    <div className="px-3 pb-2 border-b border-zinc-800">
-                      <button
-                        type="button"
-                        onClick={startNewProject}
-                        className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition"
-                      >
-                        New project
-                      </button>
-                    </div>
-                    <div className="overflow-y-auto flex-1 py-2">
-                      {projectsLoading ? (
-                        <p className="px-3 py-4 text-sm text-zinc-500">Loading…</p>
-                      ) : projects.length === 0 ? (
-                        <p className="px-3 py-4 text-sm text-zinc-500">No saved projects yet</p>
-                      ) : (
-                        <ul className="space-y-0.5">
-                          {projects.map((p) => (
-                            <li key={p.id}>
+              
+              <AnimatePresence>
+                {projectsOpen && (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-40"
+                      onClick={() => setProjectsOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl border border-border bg-card shadow-2xl py-2 max-h-[70vh] flex flex-col"
+                    >
+                      <div className="px-3 pb-2 border-b border-border">
+                        <button
+                          onClick={startNewProject}
+                          className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>New Project</span>
+                        </button>
+                      </div>
+                      <div className="overflow-y-auto flex-1 py-1 custom-scrollbar">
+                        {projectsLoading ? (
+                          <div className="px-3 py-8 flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
+                            <p className="text-xs text-zinc-500 font-medium">Loading projects...</p>
+                          </div>
+                        ) : projects.length === 0 ? (
+                          <p className="px-3 py-8 text-center text-sm text-zinc-500">No projects found</p>
+                        ) : (
+                          <div className="grid gap-0.5 px-1">
+                            {projects.map((p) => (
                               <button
-                                type="button"
+                                key={p.id}
                                 onClick={() => loadProject(p.id)}
-                                disabled={projectLoadId !== null}
-                                className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 truncate disabled:opacity-50"
+                                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-accent transition group"
                               >
-                                <span className="block truncate">{p.title || "Untitled"}</span>
-                                <span className="text-xs text-zinc-500">{formatDate(p.createdAt)}</span>
+                                <div className="font-medium truncate group-hover:text-emerald-400">
+                                  {p.title || "Untitled Project"}
+                                </div>
+                                <div className="text-[10px] text-zinc-500 mt-0.5">{formatDate(p.createdAt)}</div>
                               </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>
-        <p className="text-sm text-zinc-500 w-full sm:w-auto order-3 sm:order-2">
-          Powered by Gemini
-          {session?.user
-            ? " · Your projects are saved"
-            : " · Sign in to save projects"}
-        </p>
-        <div className="flex items-center gap-2 order-2 sm:order-3">
+
+        <div className="flex items-center gap-3">
           {status === "loading" ? (
-            <span className="text-sm text-zinc-500">Loading…</span>
+            <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
           ) : session?.user ? (
-            <>
-              <span className="text-sm text-zinc-400 truncate max-w-[140px]" title={session.user.email ?? undefined}>
-                {session.user.email}
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-xs font-medium text-zinc-200">{session.user.name || "Member"}</span>
+                <span className="text-[10px] text-zinc-500">{session.user.email}</span>
+              </div>
               <button
-                type="button"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition"
+                className="p-2 rounded-lg hover:bg-accent text-zinc-400 hover:text-white transition"
+                title="Sign Out"
               >
-                Sign out
+                <LogOut className="w-5 h-5" />
               </button>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 transition"
+                className="px-4 py-1.5 text-sm font-medium text-zinc-400 hover:text-white transition"
               >
-                Sign in
+                Sign In
               </Link>
               <Link
                 href="/register"
-                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition"
+                className="px-4 py-1.5 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/20"
               >
-                Sign up
+                Sign Up
               </Link>
-            </>
+            </div>
           )}
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0">
-        {/* Chat column */}
-        <div className="flex w-full md:w-1/2 flex-col border-r border-zinc-800">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 && (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center text-zinc-500">
-                <p className="mb-2">Try something like:</p>
-                <ul className="text-left list-disc list-inside space-y-1 text-sm">
-                  <li>Landing page with hero and CTA</li>
-                  <li>Pricing table with 3 tiers</li>
-                  <li>Portfolio grid with cards</li>
-                  <li>Dark dashboard with sidebar</li>
-                </ul>
+      {/* Main Content Area */}
+      <main className="flex-1 flex overflow-hidden relative">
+        {/* View Selection (Mobile Only) */}
+        <div className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1 rounded-full glass shadow-2xl border border-white/10">
+          <button
+            onClick={() => setViewMode("chat")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition",
+              viewMode === "chat" ? "bg-emerald-600 text-white shadow-lg" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Chat</span>
+          </button>
+          <button
+            onClick={() => setViewMode("preview")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition",
+              viewMode === "preview" ? "bg-emerald-600 text-white shadow-lg" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            <Eye className="w-4 h-4" />
+            <span>Preview</span>
+          </button>
+          <button
+            onClick={() => setViewMode("code")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition",
+              viewMode === "code" ? "bg-emerald-600 text-white shadow-lg" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            <Code className="w-4 h-4" />
+            <span>Code</span>
+          </button>
+        </div>
+
+        {/* Chat Sidebar / Left Column */}
+        <section 
+          className={cn(
+            "transition-all duration-300 relative z-20 h-full",
+            isSidebarOpen ? "w-full md:w-[400px] lg:w-[450px]" : "w-0",
+            viewMode !== "chat" && "max-md:hidden"
+          )}
+        >
+          {/* Collapse Toggle (Desktop) */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={cn(
+              "hidden md:flex absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border border-border glass items-center justify-center text-zinc-400 hover:text-white z-30 transition shadow-lg",
+              isSidebarOpen ? "-right-4" : "-right-4"
+            )}
+            title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          <div className={cn(
+            "h-full w-full flex flex-col border-r border-border overflow-hidden",
+            isSidebarOpen ? "opacity-100" : "opacity-0"
+          )}>
+
+          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 mb-6 border border-emerald-500/20">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Build something amazing</h3>
+                <p className="text-zinc-400 text-sm mb-8 max-w-[280px]">
+                  Describe the frontend you want and I&apos;ll build it for you in seconds.
+                </p>
+                <div className="grid gap-2 w-full max-w-[320px]">
+                  {[
+                    "Landing page for a SaaS startup",
+                    "Dark theme crypto dashboard",
+                    "Modern portfolio with glassmorphism",
+                    "A clean pricing section with 3 tiers"
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => setMessage(suggestion)}
+                      className="text-left px-4 py-3 rounded-xl border border-border bg-accent/20 hover:bg-accent hover:border-emerald-500/50 text-xs font-medium text-zinc-300 transition group"
+                    >
+                      <span className="group-hover:text-emerald-400 transition-colors">{suggestion}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {messages.map((m, i) => (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key={i}
+                    className={cn(
+                      "flex flex-col",
+                      m.role === "user" ? "items-end" : "items-start"
+                    )}
+                  >
+                    <div className={cn(
+                      "max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
+                      m.role === "user" 
+                        ? "bg-emerald-600 text-white rounded-tr-none shadow-lg shadow-emerald-900/10" 
+                        : "bg-accent/80 border border-white/5 backdrop-blur-sm rounded-tl-none text-zinc-200"
+                    )}>
+                      {m.content}
+                    </div>
+                  </motion.div>
+                ))}
+                
+                {loading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-accent/80 border border-white/5 px-4 py-3 rounded-2xl rounded-tl-none flex items-center gap-3">
+                      <div className="flex gap-1.5">
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                          transition={{ repeat: Infinity, duration: 1 }}
+                          className="w-1.5 h-1.5 rounded-full bg-emerald-500" 
+                        />
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                          transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+                          className="w-1.5 h-1.5 rounded-full bg-emerald-500" 
+                        />
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                          transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+                          className="w-1.5 h-1.5 rounded-full bg-emerald-500" 
+                        />
+                      </div>
+                      <span className="text-xs text-zinc-500 font-medium tracking-tight">AI is thinking...</span>
+                    </div>
+                  </motion.div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
             )}
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={
-                  m.role === "user"
-                    ? "ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600/20 px-4 py-2 text-emerald-100"
-                    : "mr-auto max-w-[85%] rounded-2xl rounded-bl-md bg-zinc-800 px-4 py-2"
-                }
-              >
-                <p className="whitespace-pre-wrap text-sm">{m.content}</p>
-              </div>
-            ))}
-            {loading && (
-              <div className="mr-auto max-w-[85%] rounded-2xl rounded-bl-md bg-zinc-800 px-4 py-2">
-                <span className="text-zinc-500 text-sm">Generating...</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="border-t border-zinc-800 p-4">
-            <div className="flex gap-2">
+          <div className="p-4 bg-background/80 backdrop-blur-md border-t border-border">
+            <form onSubmit={handleSubmit} className="relative group">
               <input
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Describe the frontend you want..."
-                className="flex-1 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="Describe the frontend..."
+                className="w-full pl-4 pr-12 py-3.5 rounded-2xl border border-border bg-accent/30 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 disabled={loading}
               />
               <button
                 type="submit"
                 disabled={loading || !message.trim()}
-                className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-600 text-white disabled:opacity-50 hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-600/20"
               >
-                Generate
+                <Send className="w-4 h-4" />
               </button>
-            </div>
-          </form>
-        </div>
+            </form>
+            <p className="mt-3 text-[10px] text-center text-zinc-500">
+              Responsive AI Web Builder — Powered by Gemini
+            </p>
+          </div>
+          </div>
+        </section>
 
-        {/* Preview + Code column */}
-        <div className="hidden md:flex w-1/2 flex-col bg-zinc-900">
-          <div className="flex items-center justify-between border-b border-zinc-800">
-            <div className="flex">
+        {/* Preview / Right Column */}
+        <section 
+          className={cn(
+            "flex-1 flex flex-col bg-accent/10 backdrop-blur-sm relative transition-all duration-300",
+            !isSidebarOpen && "ml-0",
+            viewMode === "chat" && "max-md:hidden"
+          )}
+        >
+          <div className="h-14 border-b border-border px-4 flex items-center justify-between">
+            <div className="flex divide-x divide-border overflow-hidden rounded-lg border border-border">
               <button
-                type="button"
-                onClick={() => setRightPanelTab("preview")}
-                className={`px-4 py-2.5 text-sm font-medium transition ${
-                  rightPanelTab === "preview"
-                    ? "border-b-2 border-emerald-500 text-emerald-400"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                onClick={() => setViewMode("preview")}
+                className={cn(
+                  "hidden md:flex items-center gap-2 px-4 py-1.5 text-xs font-semibold transition",
+                  viewMode === "preview" ? "bg-accent text-white" : "text-zinc-400 hover:text-white"
+                )}
               >
-                Preview
+                <Eye className="w-3.5 h-3.5" />
+                <span>Preview</span>
               </button>
               <button
-                type="button"
-                onClick={() => setRightPanelTab("code")}
-                className={`px-4 py-2.5 text-sm font-medium transition ${
-                  rightPanelTab === "code"
-                    ? "border-b-2 border-emerald-500 text-emerald-400"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                onClick={() => setViewMode("code")}
+                className={cn(
+                  "hidden md:flex items-center gap-2 px-4 py-1.5 text-xs font-semibold transition",
+                  viewMode === "code" ? "bg-accent text-white" : "text-zinc-400 hover:text-white"
+                )}
               >
-                Code
+                <Code className="w-3.5 h-3.5" />
+                <span>Code</span>
               </button>
             </div>
+
             {previewHtml && (
-              <div className="flex items-center gap-1 pr-2">
-                <button
-                  type="button"
-                  onClick={() => openPreviewInNewTab(false)}
-                  className="rounded px-2.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-600 hover:border-zinc-500 transition"
-                >
-                  Open in new tab
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openPreviewInNewTab(true)}
-                  className="rounded px-2.5 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 border border-emerald-600/50 hover:border-emerald-500/50 transition"
-                >
-                  Open fullscreen
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-h-0 p-2 overflow-hidden flex flex-col">
-            {rightPanelTab === "preview" ? (
-              previewHtml ? (
-                <iframe
-                  key={previewVersion}
-                  ref={previewRef}
-                  title="Generated frontend preview"
-                  srcDoc={previewHtml}
-                  className="h-full w-full rounded-lg border border-zinc-700 bg-white flex-1 min-h-0"
-                  sandbox="allow-scripts"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-zinc-700 text-zinc-600 text-sm">
-                  Your generated page will appear here
+              <div className="flex items-center gap-2">
+                <div className="hidden lg:flex items-center gap-1 mr-4 bg-accent/50 p-1 rounded-lg border border-border">
+                  <button 
+                    onClick={() => setPreviewDevice("desktop")}
+                    className={cn(
+                      "p-1.5 rounded transition",
+                      previewDevice === "desktop" ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-white"
+                    )} 
+                    title="Desktop View"
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={() => setPreviewDevice("tablet")}
+                    className={cn(
+                      "p-1.5 rounded transition",
+                      previewDevice === "tablet" ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-white"
+                    )} 
+                    title="Tablet View"
+                  >
+                    <Tablet className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={() => setPreviewDevice("mobile")}
+                    className={cn(
+                      "p-1.5 rounded transition",
+                      previewDevice === "mobile" ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-white"
+                    )} 
+                    title="Mobile View"
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              )
-            ) : (
-              <div className="flex flex-col h-full min-h-0 rounded-lg border border-zinc-700 bg-zinc-950 overflow-hidden">
-                {previewHtml ? (
-                  <>
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-900/80">
-                      <span className="text-xs text-zinc-500 font-mono">index.html</span>
-                      <button
-                        type="button"
-                        onClick={copyCode}
-                        className="text-xs font-medium text-emerald-400 hover:text-emerald-300 px-2 py-1 rounded border border-zinc-600 hover:border-emerald-500/50 transition"
-                      >
-                        {copied ? "Copied!" : "Copy code"}
-                      </button>
-                    </div>
-                    <pre className="flex-1 overflow-auto p-4 text-xs text-zinc-300 font-mono whitespace-pre break-all m-0">
-                      <code className="block min-w-max">{previewHtml}</code>
-                    </pre>
-                  </>
-                ) : (
-                  <div className="flex flex-1 items-center justify-center text-zinc-600 text-sm">
-                    Generate a frontend to see the code here
-                  </div>
-                )}
+                
+                <button
+                  onClick={() => openPreviewInNewTab(false)}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:bg-accent text-xs font-medium text-zinc-400 hover:text-white transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open URL</span>
+                </button>
+                
+                <button
+                  onClick={() => openPreviewInNewTab(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600/10 border border-emerald-600/20 text-emerald-500 hover:bg-emerald-600/20 text-xs font-bold transition"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Fullscreen</span>
+                </button>
               </div>
             )}
           </div>
-        </div>
-      </div>
+
+          <div className="flex-1 p-4 md:p-6 overflow-hidden flex flex-col items-center">
+            <AnimatePresence mode="wait">
+              {viewMode === "preview" ? (
+                <motion.div 
+                  key="preview"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full h-full flex flex-col items-center"
+                >
+                  {previewHtml ? (
+                    <div 
+                      className={cn(
+                        "h-full rounded-2xl border border-border overflow-hidden shadow-2xl bg-white ring-1 ring-white/10 transition-all duration-500",
+                        previewDevice === "desktop" ? "w-full" : 
+                        previewDevice === "tablet" ? "w-[768px]" : "w-[375px]"
+                      )}
+                    >
+                      <iframe
+                        key={previewVersion}
+                        ref={previewRef}
+                        title="Generated UI"
+                        srcDoc={previewHtml}
+                        className="w-full h-full"
+                        sandbox="allow-scripts"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-accent/5">
+                      <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-600 mb-4">
+                        <Monitor className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-zinc-400">Preview Area</h4>
+                      <p className="text-xs text-zinc-500 mt-1 text-center max-w-[200px]">
+                        Your generated website will appear here in real-time.
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="code"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full h-full flex flex-col rounded-2xl border border-border overflow-hidden bg-[#0d1117] shadow-2xl"
+                >
+                  <div className="h-10 border-b border-border bg-[#161b22] px-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50" />
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">index.html</span>
+                    </div>
+                    {previewHtml && (
+                      <button
+                        onClick={copyCode}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition"
+                      >
+                        {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                        <span>{copied ? "Copied" : "Copy"}</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-auto custom-scrollbar p-6">
+                    {previewHtml ? (
+                      <pre className="text-xs font-mono text-zinc-300 leading-relaxed">
+                        <code>{previewHtml}</code>
+                      </pre>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-zinc-600 text-xs">
+                        No code to display yet
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
