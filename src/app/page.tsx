@@ -199,7 +199,7 @@ export default function Home() {
 
       if (data.sessionId) {
         setSessionId(data.sessionId);
-        if (session?.user) fetchProjects();
+        fetchProjects();
       }
 
       setMessages((prev) => [
