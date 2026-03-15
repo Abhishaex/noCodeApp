@@ -1,30 +1,59 @@
-# noCodeApp
+# Frontend AI — Build website frontends with chat
 
-An AI-powered no-code platform where users can build web applications using natural language prompts.
+An AI chatbot that generates website frontends from natural language. Describe what you want, get HTML/CSS/JS. Built with **Next.js**, **Gemini API**, and **Neon** (Postgres).
 
-## Overview
+## Setup
 
-noCodeApp lets you describe what you want in plain language, and the AI helps you create full web applications—no coding required. Ideal for prototypes, internal tools, and simple web apps.
+### 1. Install and run
 
-## Features (Planned)
+```bash
+npm install
+npm run dev
+```
 
-- **Prompt-to-app**: Describe your app in text; get a working web app
-- **Visual builder**: Refine and customize your app with an intuitive interface
-- **Templates**: Start from common app types (dashboards, forms, landing pages)
-- **Export & deploy**: Export or deploy your app when you’re ready
+Open [http://localhost:3000](http://localhost:3000).
 
-## Getting Started
+### 2. Gemini API key
 
-*Setup and run instructions will be added as the project evolves.*
+1. Get a key: [Google AI Studio](https://aistudio.google.com/apikey)
+2. Copy `.env.example` to `.env`
+3. Set `GEMINI_API_KEY=your_key` in `.env`
 
-## Tech Stack
+Without this, the chat API will return an error.
 
-*To be decided.*
+### 3. Neon database (optional)
 
-## Contributing
+Chat history is saved when a Neon database is connected.
 
-Contributions are welcome. Please open an issue or submit a pull request.
+1. Create a project at [Neon](https://neon.tech) and get two connection strings:
+   - **Pooled** (for the app): `postgresql://...@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require`
+   - **Direct** (for migrations): `postgresql://...@ep-xxx.region.aws.neon.tech/neondb?sslmode=require`
 
-## License
+2. In `.env`:
 
-*To be specified.*
+   ```env
+   DATABASE_URL="postgresql://...pooler...?sslmode=require"
+   DIRECT_URL="postgresql://... (no pooler) ...?sslmode=require"
+   ```
+
+3. Run migrations:
+
+   ```bash
+   npx prisma migrate deploy
+   ```
+
+If you skip Neon, the app still works; chat just won’t be persisted.
+
+## Tech stack
+
+- **Next.js 16** (App Router)
+- **Gemini 2.0 Flash** via `@google/genai`
+- **Neon** Postgres with **Prisma 7** (driver adapter `@prisma/adapter-pg`)
+
+## Scripts
+
+- `npm run dev` — start dev server
+- `npm run build` — production build
+- `npm run start` — run production server
+- `npx prisma migrate deploy` — apply migrations (after setting Neon URLs)
+- `npx prisma generate` — regenerate Prisma client
