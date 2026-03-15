@@ -22,7 +22,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  Trash2
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -58,6 +59,7 @@ export default function Home() {
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectLoadId, setProjectLoadId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   
@@ -88,6 +90,20 @@ export default function Home() {
     setPreviewVersion((v) => v + 1);
     setProjectsOpen(false);
     setViewMode("chat");
+  };
+
+  const deleteProject = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setProjects((prev) => prev.filter((p) => p.id !== id));
+        if (sessionId === id) startNewProject();
+      }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const loadProject = async (id: string) => {
@@ -290,16 +306,33 @@ export default function Home() {
                       ) : (
                         <div className="grid gap-0.5 px-1">
                           {projects.map((p) => (
-                            <button
+                            <div
                               key={p.id}
-                              onClick={() => loadProject(p.id)}
-                              className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-accent transition group"
+                              className="group flex items-center gap-1 rounded-lg hover:bg-accent transition"
                             >
-                              <div className="font-medium truncate group-hover:text-emerald-400">
-                                {p.title || "Untitled Project"}
-                              </div>
-                              <div className="text-[10px] text-zinc-500 mt-0.5">{formatDate(p.createdAt)}</div>
-                            </button>
+                              <button
+                                type="button"
+                                onClick={(e) => deleteProject(e, p.id)}
+                                disabled={deletingId === p.id}
+                                className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition shrink-0 disabled:opacity-50"
+                                title="Delete project"
+                              >
+                                {deletingId === p.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => loadProject(p.id)}
+                                className="flex-1 min-w-0 text-left px-3 py-2.5 text-sm"
+                              >
+                                <div className="font-medium truncate group-hover:text-emerald-400">
+                                  {p.title || "Untitled Project"}
+                                </div>
+                                <div className="text-[10px] text-zinc-500 mt-0.5">{formatDate(p.createdAt)}</div>
+                              </button>
+                            </div>
                           ))}
                         </div>
                       )}

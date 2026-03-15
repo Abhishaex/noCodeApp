@@ -51,3 +51,28 @@ export async function GET(
     );
   }
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!prisma) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+  const { id } = await params;
+  try {
+    await prisma.chatSession.delete({
+      where: { id },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Project delete error:", err);
+    return NextResponse.json(
+      { error: "Project not found or failed to delete" },
+      { status: 404 }
+    );
+  }
+}
