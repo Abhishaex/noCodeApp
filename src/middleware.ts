@@ -1,18 +1,11 @@
-import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth({
-  pages: { signIn: "/login" },
-});
+// No auth required — app is open to everyone
+export function middleware(_req: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: [
-    /*
-     * Match all paths except:
-     * - login, register
-     * - api (auth routes, etc.)
-     * - _next (Next.js internals)
-     * - favicon, other static files
-     */
-    "/((?!login|register|api|_next|favicon).*)",
-  ],
+  matcher: ["/((?!api|_next|favicon).*)"],
 };

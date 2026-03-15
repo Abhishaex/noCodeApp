@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { generateFrontend } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 
@@ -8,12 +6,6 @@ const hasDb = () => Boolean(process.env.DATABASE_URL && prisma);
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const userId = session.user.id;
-
     const body = await req.json();
     const { message, sessionId, previousHtml } = body as {
       message: string;
@@ -35,7 +27,7 @@ export async function POST(req: NextRequest) {
       try {
         let chatSession = sessionId
           ? await db.chatSession.findFirst({
-              where: { id: sessionId, ...(userId ? { userId } : { userId: null }) },
+              where: { id: sessionId },
             })
           : null;
 
@@ -43,7 +35,6 @@ export async function POST(req: NextRequest) {
           chatSession = await db.chatSession.create({
             data: {
               title: message.slice(0, 50) || "New chat",
-              userId: userId ?? undefined,
             },
           });
         }

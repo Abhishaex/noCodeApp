@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -16,8 +15,6 @@ import {
   Maximize2, 
   Copy, 
   Check, 
-  LogOut, 
-  User, 
   History,
   Send,
   Loader2,
@@ -49,7 +46,6 @@ type ProjectItem = {
 };
 
 export default function Home() {
-  const { data: session, status } = useSession();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,7 +65,6 @@ export default function Home() {
   const previewRef = useRef<HTMLIFrameElement>(null);
 
   const fetchProjects = async () => {
-    if (!session?.user) return;
     setProjectsLoading(true);
     try {
       const res = await fetch("/api/projects");
@@ -83,9 +78,8 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (session?.user) fetchProjects();
-    else setProjects([]);
-  }, [session?.user]);
+    fetchProjects();
+  }, []);
 
   const startNewProject = () => {
     setSessionId(null);
@@ -251,107 +245,70 @@ export default function Home() {
             </h1>
           </Link>
 
-          {session?.user && (
-            <div className="relative">
-              <button
-                onClick={() => setProjectsOpen(!projectsOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-accent/50 hover:bg-accent text-sm transition"
-              >
-                <History className="w-4 h-4" />
-                <span>Projects</span>
-              </button>
-              
-              <AnimatePresence>
-                {projectsOpen && (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="fixed inset-0 z-40"
-                      onClick={() => setProjectsOpen(false)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl border border-border bg-card shadow-2xl py-2 max-h-[70vh] flex flex-col"
-                    >
-                      <div className="px-3 pb-2 border-b border-border">
-                        <button
-                          onClick={startNewProject}
-                          className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition"
-                        >
-                          <Plus className="w-4 h-4" />
-                          <span>New Project</span>
-                        </button>
-                      </div>
-                      <div className="overflow-y-auto flex-1 py-1 custom-scrollbar">
-                        {projectsLoading ? (
-                          <div className="px-3 py-8 flex flex-col items-center justify-center gap-2">
-                            <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
-                            <p className="text-xs text-zinc-500 font-medium">Loading projects...</p>
-                          </div>
-                        ) : projects.length === 0 ? (
-                          <p className="px-3 py-8 text-center text-sm text-zinc-500">No projects found</p>
-                        ) : (
-                          <div className="grid gap-0.5 px-1">
-                            {projects.map((p) => (
-                              <button
-                                key={p.id}
-                                onClick={() => loadProject(p.id)}
-                                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-accent transition group"
-                              >
-                                <div className="font-medium truncate group-hover:text-emerald-400">
-                                  {p.title || "Untitled Project"}
-                                </div>
-                                <div className="text-[10px] text-zinc-500 mt-0.5">{formatDate(p.createdAt)}</div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {status === "loading" ? (
-            <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
-          ) : session?.user ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-xs font-medium text-zinc-200">{session.user.name || "Member"}</span>
-                <span className="text-[10px] text-zinc-500">{session.user.email}</span>
-              </div>
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="p-2 rounded-lg hover:bg-accent text-zinc-400 hover:text-white transition"
-                title="Sign Out"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="px-4 py-1.5 text-sm font-medium text-zinc-400 hover:text-white transition"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="px-4 py-1.5 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/20"
-              >
-                Sign Up
-              </Link>
-            </div>
-          )}
+          <div className="relative">
+            <button
+              onClick={() => setProjectsOpen(!projectsOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-accent/50 hover:bg-accent text-sm transition"
+            >
+              <History className="w-4 h-4" />
+              <span>Projects</span>
+            </button>
+            
+            <AnimatePresence>
+              {projectsOpen && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-40"
+                    onClick={() => setProjectsOpen(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl border border-border bg-card shadow-2xl py-2 max-h-[70vh] flex flex-col"
+                  >
+                    <div className="px-3 pb-2 border-b border-border">
+                      <button
+                        onClick={startNewProject}
+                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>New Project</span>
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto flex-1 py-1 custom-scrollbar">
+                      {projectsLoading ? (
+                        <div className="px-3 py-8 flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
+                          <p className="text-xs text-zinc-500 font-medium">Loading projects...</p>
+                        </div>
+                      ) : projects.length === 0 ? (
+                        <p className="px-3 py-8 text-center text-sm text-zinc-500">No projects found</p>
+                      ) : (
+                        <div className="grid gap-0.5 px-1">
+                          {projects.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => loadProject(p.id)}
+                              className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-accent transition group"
+                            >
+                              <div className="font-medium truncate group-hover:text-emerald-400">
+                                {p.title || "Untitled Project"}
+                              </div>
+                              <div className="text-[10px] text-zinc-500 mt-0.5">{formatDate(p.createdAt)}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </header>
 
